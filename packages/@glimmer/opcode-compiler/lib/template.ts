@@ -83,8 +83,9 @@ class TemplateImpl<R> implements TemplateOk<R> {
 
   constructor(private parsedLayout: Pick<LayoutWithContext<R>, 'id' | 'block' | 'referrer'>) {
     let { block } = parsedLayout;
-    this.symbols = block.symbols;
-    this.hasEval = block.hasEval;
+    let [, symbols, hasEval] = block;
+    this.symbols = symbols;
+    this.hasEval = hasEval;
     this.referrer = parsedLayout.referrer;
     this.id = parsedLayout.id || `client-${clientId++}`;
   }

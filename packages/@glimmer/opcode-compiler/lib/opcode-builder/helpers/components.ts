@@ -463,7 +463,7 @@ export function curryComponent(
 }
 
 function blockForLayout<R>(layout: LayoutWithContext<R>): CompilableBlock {
-  return compilableBlock(layout.block.statements, meta(layout));
+  return compilableBlock([layout.block[0]], meta(layout));
 }
 
 export function WithSavedRegister(register: SavedRegister, block: Block): CompileActions {
