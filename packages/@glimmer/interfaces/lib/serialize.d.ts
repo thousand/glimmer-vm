@@ -74,6 +74,13 @@ export interface CompileTimeComponent {
   compilable: Option<CompilableProgram>;
 }
 
+export const enum ResolverContext {
+  Component,
+  Modifier,
+  Helper,
+  HelperOrComponent,
+}
+
 export interface CompileTimeResolver<M = unknown> extends HandleResolver {
   lookupHelper(name: string, referrer: M): Option<number>;
   lookupModifier(name: string, referrer: M): Option<number>;
