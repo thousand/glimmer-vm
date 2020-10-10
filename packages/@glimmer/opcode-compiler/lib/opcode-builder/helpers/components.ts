@@ -35,7 +35,7 @@ import {
   YieldBlock,
 } from './blocks';
 import { Replayable } from './conditional';
-import { CompileArgs, meta } from './shared';
+import { CompileArgs, meta, SimpleArgs } from './shared';
 
 export const ATTRS_BLOCK = '&attrs';
 
@@ -153,10 +153,7 @@ export function InvokeStaticComponent({
   let { symbols } = symbolTable;
 
   if (capabilities.createArgs) {
-    out.push(
-      op(MachineOp.PushFrame),
-      op(HighLevelResolutionOpcode.SimpleArgs, { params, hash, atNames: true })
-    );
+    out.push(op(MachineOp.PushFrame), SimpleArgs({ params, hash, atNames: true }));
   }
 
   out.push(op(Op.BeginComponentTransaction, $s0));
@@ -458,7 +455,7 @@ export function curryComponent(
 ): ExpressionCompileActions {
   return [
     op(MachineOp.PushFrame),
-    op(HighLevelResolutionOpcode.SimpleArgs, { params, hash, atNames }),
+    SimpleArgs({ params, hash, atNames }),
     op(Op.CaptureArgs),
     op(HighLevelResolutionOpcode.Expr, definition),
     op(Op.CurryComponent, templateMeta(referrer)),
