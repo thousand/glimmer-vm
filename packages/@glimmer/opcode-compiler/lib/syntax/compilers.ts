@@ -4,7 +4,7 @@ import { assert } from '@glimmer/util';
 export type CompilerFunction<TSexp, TCompileAction> = (
   sexp: TSexp,
   meta: ContainingMetadata
-) => TCompileAction | TCompileAction[];
+) => TCompileAction[];
 
 export class Compilers<TSexpOpcodes extends SexpOpcode, TCompileAction> {
   private names: {
@@ -20,10 +20,7 @@ export class Compilers<TSexpOpcodes extends SexpOpcode, TCompileAction> {
     this.names[name] = this.funcs.push(func) - 1;
   }
 
-  compile(
-    sexp: SexpOpcodeMap[TSexpOpcodes],
-    meta: ContainingMetadata
-  ): TCompileAction | TCompileAction[] {
+  compile(sexp: SexpOpcodeMap[TSexpOpcodes], meta: ContainingMetadata): TCompileAction[] {
     let name = sexp[0];
     let index = this.names[name];
     let func = this.funcs[index];

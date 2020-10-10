@@ -84,19 +84,11 @@ export function op<K extends AllOpcode>(
 ): AllOpMap[K] | OpcodeWrapperOp | BuilderOpcode {
   if (!isHighLevelOpcode(name)) {
     if (op3 !== undefined) {
-      return {
-        type: HighLevelOpcodeType.OpcodeWrapper,
-        op: name,
-        op1: [op1, op2, op3],
-      } as OpcodeWrapperOp;
+      return [name, op1, op2, op3] as OpcodeWrapperOp;
     } else if (op2 !== undefined) {
-      return {
-        type: HighLevelOpcodeType.OpcodeWrapper,
-        op: name,
-        op1: [op1, op2],
-      } as OpcodeWrapperOp;
+      return [name, op1, op2] as OpcodeWrapperOp;
     } else if (op1 !== undefined) {
-      return { type: HighLevelOpcodeType.OpcodeWrapper, op: name, op1: [op1] } as OpcodeWrapperOp;
+      return [name, op1] as OpcodeWrapperOp;
     } else {
       return name;
     }

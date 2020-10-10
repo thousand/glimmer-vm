@@ -56,9 +56,6 @@ export type Operands<O extends AllOps> = O['op1'] extends undefined ? [] : [O['o
  * actions, and then the actions are flushed and turned into the final opcodes.
  */
 export const enum HighLevelOpcodeType {
-  // Simple wrapper action, wraps the opcode and flushes it directly
-  OpcodeWrapper = 0,
-
   // Used for basic structure, such as adding labels to the output for jumps
   Builder = 1,
 
@@ -218,11 +215,12 @@ interface HighLevelOpcode {
   type: HighLevelOpcodeType;
 }
 
-export interface OpcodeWrapperOp extends HighLevelOpcode {
-  type: HighLevelOpcodeType.OpcodeWrapper;
-  op: BuilderOpcode;
-  op1: SingleBuilderOperand[];
-}
+export type OpcodeWrapperOp = [
+  op: BuilderOpcode,
+  op1: SingleBuilderOperand,
+  op2?: SingleBuilderOperand,
+  op3?: SingleBuilderOperand
+];
 
 export interface StartLabelsOp extends HighLevelOpcode {
   type: HighLevelOpcodeType.Builder;

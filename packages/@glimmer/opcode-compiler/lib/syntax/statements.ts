@@ -41,9 +41,9 @@ export function inflateAttrName(attrName: string | WellKnownAttrName): string {
   return typeof attrName === 'string' ? attrName : INFLATE_ATTR_TABLE[attrName];
 }
 
-STATEMENTS.add(SexpOpcodes.Comment, (sexp) => op(Op.Comment, sexp[1]));
-STATEMENTS.add(SexpOpcodes.CloseElement, () => op(Op.CloseElement));
-STATEMENTS.add(SexpOpcodes.FlushElement, () => op(Op.FlushElement));
+STATEMENTS.add(SexpOpcodes.Comment, (sexp) => [op(Op.Comment, sexp[1])]);
+STATEMENTS.add(SexpOpcodes.CloseElement, () => [op(Op.CloseElement)]);
+STATEMENTS.add(SexpOpcodes.FlushElement, () => [op(Op.FlushElement)]);
 
 STATEMENTS.add(SexpOpcodes.Modifier, (sexp, meta) => {
   let [, name, params, hash] = sexp;
@@ -51,32 +51,34 @@ STATEMENTS.add(SexpOpcodes.Modifier, (sexp, meta) => {
   let stringName = expectLooseFreeVariable(name, meta, 'Expected modifier head to be a string');
 
   if (typeof stringName !== 'string') {
-    return stringName;
+    return [stringName];
   }
 
-  return op(HighLevelResolutionOpcode.IfResolved, {
-    kind: ResolveHandle.Modifier,
-    name: stringName,
-    andThen: (handle) => [
-      op(MachineOp.PushFrame),
-      ...SimpleArgs({ params, hash, atNames: false }),
-      op(Op.Modifier, handle),
-      op(MachineOp.PopFrame),
-    ],
-    span: {
-      start: 0,
-      end: 0,
-    },
-  });
+  return [
+    op(HighLevelResolutionOpcode.IfResolved, {
+      kind: ResolveHandle.Modifier,
+      name: stringName,
+      andThen: (handle) => [
+        op(MachineOp.PushFrame),
+        ...SimpleArgs({ params, hash, atNames: false }),
+        op(Op.Modifier, handle),
+        op(MachineOp.PopFrame),
+      ],
+      span: {
+        start: 0,
+        end: 0,
+      },
+    }),
+  ];
 });
 
-STATEMENTS.add(SexpOpcodes.StaticAttr, ([, name, value, namespace]) =>
-  op(Op.StaticAttr, inflateAttrName(name), value as string, namespace ?? null)
-);
+STATEMENTS.add(SexpOpcodes.StaticAttr, ([, name, value, namespace]) => [
+  op(Op.StaticAttr, inflateAttrName(name), value as string, namespace ?? null),
+]);
 
-STATEMENTS.add(SexpOpcodes.StaticComponentAttr, ([, name, value, namespace]) =>
-  op(Op.StaticComponentAttr, inflateAttrName(name), value as string, namespace ?? null)
-);
+STATEMENTS.add(SexpOpcodes.StaticComponentAttr, ([, name, value, namespace]) => [
+  op(Op.StaticComponentAttr, inflateAttrName(name), value as string, namespace ?? null),
+]);
 
 STATEMENTS.add(SexpOpcodes.DynamicAttr, ([, name, value, namespace]) => [
   op(HighLevelResolutionOpcode.Expr, value),
@@ -116,37 +118,39 @@ STATEMENTS.add(SexpOpcodes.Component, ([, tag, elementBlock, args, blocks], meta
   if (componentName !== null) {
     // The component name was a free variable lookup; in non-strict mode, this means we'll
     // use the runtime resolver to resolve the component
-    return op(HighLevelCompileOpcode.IfResolvedComponent, {
-      name: componentName,
-      elementBlock,
-      blocks,
-      staticTemplate: (layoutHandle, capabilities, template, { blocks, elementBlock }) => {
-        return [
-          op(Op.PushComponentDefinition, layoutHandle),
-          ...InvokeStaticComponent({
-            capabilities,
-            layout: template,
-            elementBlock,
-            params: null,
-            hash: args,
-            blocks,
-          }),
-        ];
-      },
-      dynamicTemplate: (layoutHandle, capabilities, { elementBlock, blocks }) => {
-        return [
-          op(Op.PushComponentDefinition, layoutHandle),
-          ...InvokeComponent({
-            capabilities,
-            elementBlock,
-            params: null,
-            hash: args,
-            atNames: true,
-            blocks,
-          }),
-        ];
-      },
-    });
+    return [
+      op(HighLevelCompileOpcode.IfResolvedComponent, {
+        name: componentName,
+        elementBlock,
+        blocks,
+        staticTemplate: (layoutHandle, capabilities, template, { blocks, elementBlock }) => {
+          return [
+            op(Op.PushComponentDefinition, layoutHandle),
+            ...InvokeStaticComponent({
+              capabilities,
+              layout: template,
+              elementBlock,
+              params: null,
+              hash: args,
+              blocks,
+            }),
+          ];
+        },
+        dynamicTemplate: (layoutHandle, capabilities, { elementBlock, blocks }) => {
+          return [
+            op(Op.PushComponentDefinition, layoutHandle),
+            ...InvokeComponent({
+              capabilities,
+              elementBlock,
+              params: null,
+              hash: args,
+              atNames: true,
+              blocks,
+            }),
+          ];
+        },
+      }),
+    ];
   } else if (isStrictFreeVariable(tag)) {
     // Strict Mode Note: In strict mode, a free variable (without context) is a variable whose value is known
     // at compile-time, and therefore this should not be compiled as a DynamicComponent (which needs to insert
@@ -155,15 +159,17 @@ STATEMENTS.add(SexpOpcodes.Component, ([, tag, elementBlock, args, blocks], meta
   } else {
     // otherwise, the component name was an expression, so resolve the expression and invoke it as a dynamic
     // component
-    return op(HighLevelCompileOpcode.DynamicComponent, {
-      definition: tag,
-      elementBlock,
-      params: null,
-      args,
-      blocks,
-      atNames: true,
-      curried: true,
-    });
+    return [
+      op(HighLevelCompileOpcode.DynamicComponent, {
+        definition: tag,
+        elementBlock,
+        params: null,
+        args,
+        blocks,
+        atNames: true,
+        curried: true,
+      }),
+    ];
   }
 });
 
@@ -195,37 +201,39 @@ STATEMENTS.add(SexpOpcodes.Yield, ([, to, params]) => YieldBlock(to, params));
 
 STATEMENTS.add(SexpOpcodes.AttrSplat, ([, to]) => YieldBlock(to, null));
 
-STATEMENTS.add(SexpOpcodes.Debugger, ([, evalInfo], meta) =>
-  op(Op.Debugger, strArray(meta.evalSymbols || EMPTY_STRING_ARRAY), arr(evalInfo))
-);
+STATEMENTS.add(SexpOpcodes.Debugger, ([, evalInfo], meta) => [
+  op(Op.Debugger, strArray(meta.evalSymbols || EMPTY_STRING_ARRAY), arr(evalInfo)),
+]);
 
 STATEMENTS.add(SexpOpcodes.Append, (sexp) => {
   let [, value] = sexp;
 
   // Special case for static strings
   if (isStringLiteral(value)) {
-    return op(Op.Text, getStringFromValue(value));
+    return [op(Op.Text, getStringFromValue(value))];
   }
 
-  return op(HighLevelCompileOpcode.CompileInline, {
-    inline: sexp,
-    ifUnhandled: () => [
-      op(MachineOp.PushFrame),
-      op(HighLevelResolutionOpcode.Expr, value),
-      op(MachineOp.InvokeStatic, {
-        type: 'stdlib',
-        value: 'cautious-append',
-      }),
-      op(MachineOp.PopFrame),
-    ],
-  });
+  return [
+    op(HighLevelCompileOpcode.CompileInline, {
+      inline: sexp,
+      ifUnhandled: () => [
+        op(MachineOp.PushFrame),
+        op(HighLevelResolutionOpcode.Expr, value),
+        op(MachineOp.InvokeStatic, {
+          type: 'stdlib',
+          value: 'cautious-append',
+        }),
+        op(MachineOp.PopFrame),
+      ],
+    }),
+  ];
 });
 
 STATEMENTS.add(SexpOpcodes.TrustingAppend, (sexp) => {
   let [, value] = sexp;
 
   if (typeof value === 'string') {
-    return op(Op.Text, value);
+    return [op(Op.Text, value)];
   }
   // macro was ignoring trusting flag doesn't seem like {{{}}} should
   // even be passed to macros, there is no {{{component}}}
@@ -240,9 +248,7 @@ STATEMENTS.add(SexpOpcodes.TrustingAppend, (sexp) => {
   ];
 });
 
-STATEMENTS.add(SexpOpcodes.Block, (sexp) => {
-  return op(HighLevelCompileOpcode.CompileBlock, sexp);
-});
+STATEMENTS.add(SexpOpcodes.Block, (sexp) => [op(HighLevelCompileOpcode.CompileBlock, sexp)]);
 
 STATEMENTS.add(SexpOpcodes.InElement, ([, block, guid, destination, insertBefore], meta) => {
   return ReplayableIf({

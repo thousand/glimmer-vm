@@ -72,7 +72,7 @@ export default function pushResolutionOp(
 export function expr(
   expression: WireFormat.Expression,
   meta: ContainingMetadata
-): ExpressionCompileAction | ExpressionCompileAction[] {
+): ExpressionCompileAction[] {
   if (Array.isArray(expression)) {
     return EXPRESSIONS.compile(expression, meta);
   } else {

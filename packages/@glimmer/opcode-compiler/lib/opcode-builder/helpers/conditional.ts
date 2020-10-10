@@ -142,7 +142,7 @@ export function Replayable<T extends CompileAction[] | StatementCompileAction[]>
     // END. Otherwise, the return in RETURN will return to END.
     op(MachineOp.ReturnTo, label('ENDINITIAL')),
 
-    actions,
+    ...actions,
 
     // Start a new updating closure, remembering `count` elements
     // from the stack. Everything after this point, and before END,
@@ -159,7 +159,7 @@ export function Replayable<T extends CompileAction[] | StatementCompileAction[]>
     // Evaluate the body of the block. The body of the block may
     // return, which will jump execution to END during initial
     // execution, and exit the updating routine.
-    body(),
+    ...body(),
 
     // All execution paths in the body should run the FINALLY once
     // they are done. It is executed both during initial execution
@@ -214,7 +214,7 @@ export function ReplayableIf<T extends CompileAction[] | StatementCompileAction[
         // If the conditional is false, jump to the ELSE label.
         op(Op.JumpUnless, label('ELSE')),
         // Otherwise, execute the code associated with the true branch.
-        ifTrue(),
+        ...ifTrue(),
         // We're done, so return. In the initial execution, this runs
         // the cleanup code. In the updating VM, it exits the updating
         // routine.
@@ -227,7 +227,7 @@ export function ReplayableIf<T extends CompileAction[] | StatementCompileAction[
       // associated with the false branch, jumping to the else statement
       // has no other behavior.
       if (ifFalse) {
-        out.push(ifFalse());
+        out.push(...ifFalse());
       }
 
       return out as T;

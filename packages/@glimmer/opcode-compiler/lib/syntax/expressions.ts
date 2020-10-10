@@ -37,11 +37,13 @@ EXPRESSIONS.add(SexpOpcodes.Call, ([, name, params, hash], meta) => {
 
   if (isComponent(name, meta)) {
     if (!params || params.length === 0) {
-      return op(HighLevelErrorOpcode.Error, {
-        problem: 'component helper requires at least one argument',
-        start: start,
-        end: start + offset,
-      });
+      return [
+        op(HighLevelErrorOpcode.Error, {
+          problem: 'component helper requires at least one argument',
+          start: start,
+          end: start + offset,
+        }),
+      ];
     }
 
     let [definition, ...restArgs] = params as Expressions.Expression[];
@@ -59,18 +61,20 @@ EXPRESSIONS.add(SexpOpcodes.Call, ([, name, params, hash], meta) => {
   let nameOrError = expectLooseFreeVariable(name, meta, 'Expected call head to be a string');
 
   if (typeof nameOrError !== 'string') {
-    return nameOrError;
+    return [nameOrError];
   }
 
-  return op(HighLevelResolutionOpcode.IfResolved, {
-    kind: ResolveHandle.Helper,
-    name: nameOrError,
-    andThen: (handle) => Call({ handle, params, hash }),
-    span: {
-      start,
-      end: start + offset,
-    },
-  });
+  return [
+    op(HighLevelResolutionOpcode.IfResolved, {
+      kind: ResolveHandle.Helper,
+      name: nameOrError,
+      andThen: (handle) => Call({ handle, params, hash }),
+      span: {
+        start,
+        end: start + offset,
+      },
+    }),
+  ];
 });
 
 function isGetContextualFree(
@@ -97,23 +101,19 @@ function isComponent(expr: Expressions.Expression, meta: ContainingMetadata): bo
   return false;
 }
 
-EXPRESSIONS.add(SexpOpcodes.GetSymbol, ([, sym, path]) => withPath(op(Op.GetVariable, sym), path));
+EXPRESSIONS.add(SexpOpcodes.GetSymbol, ([, sym, path]) =>
+  withPath([op(Op.GetVariable, sym)], path)
+);
 EXPRESSIONS.add(SexpOpcodes.GetStrictFree, ([, sym, path]) =>
-  withPath(op(HighLevelResolutionOpcode.ResolveFree, sym), path)
+  withPath([op(HighLevelResolutionOpcode.ResolveFree, sym)], path)
 );
 EXPRESSIONS.add(SexpOpcodes.GetFreeAsFallback, ([, freeVar, path], meta) => {
   if (meta.asPartial) {
     let name = meta.upvars![freeVar];
 
-    return withPath(op(Op.ResolveMaybeLocal, name), path);
+    return withPath([op(Op.ResolveMaybeLocal, name)], path);
   } else {
-    let out = [op(Op.GetVariable, 0), op(Op.GetProperty, meta.upvars![freeVar])];
-
-    if (path !== undefined && path.length > 0) {
-      out.push(...expandPath(path));
-    }
-
-    return out;
+    return withPath([op(Op.GetVariable, 0), op(Op.GetProperty, meta.upvars![freeVar])], path);
   }
 });
 
@@ -123,10 +123,10 @@ EXPRESSIONS.add(
     if (meta.asPartial) {
       let name = meta.upvars![freeVar];
 
-      return withPath(op(Op.ResolveMaybeLocal, name), path);
+      return withPath([op(Op.ResolveMaybeLocal, name)], path);
     } else {
       return withPath(
-        op(HighLevelResolutionOpcode.ResolveAmbiguous, { upvar: freeVar, allowComponents: true }),
+        [op(HighLevelResolutionOpcode.ResolveAmbiguous, { upvar: freeVar, allowComponents: true })],
         path
       );
     }
@@ -137,29 +137,23 @@ EXPRESSIONS.add(SexpOpcodes.GetFreeAsHelperHeadOrThisFallback, ([, freeVar, path
   if (meta.asPartial) {
     let name = meta.upvars![freeVar];
 
-    return withPath(op(Op.ResolveMaybeLocal, name), path);
+    return withPath([op(Op.ResolveMaybeLocal, name)], path);
   } else {
     return withPath(
-      op(HighLevelResolutionOpcode.ResolveAmbiguous, { upvar: freeVar, allowComponents: false }),
+      [op(HighLevelResolutionOpcode.ResolveAmbiguous, { upvar: freeVar, allowComponents: false })],
       path
     );
   }
 });
 
-function withPath(expr: ExpressionCompileAction, path?: string[]) {
-  if (path === undefined || path.length === 0) return expr;
-
-  return [expr, ...expandPath(path)];
-}
-
-function expandPath(path: string[]) {
-  let expanded = [];
-
-  for (let i = 0; i < path.length; i++) {
-    expanded.push(op(Op.GetProperty, path[i]));
+function withPath(expr: ExpressionCompileAction[], path?: string[]) {
+  if (path !== undefined && path.length > 0) {
+    for (let i = 0; i < path.length; i++) {
+      expr.push(op(Op.GetProperty, path[i]));
+    }
   }
 
-  return expanded;
+  return expr;
 }
 
 EXPRESSIONS.add(SexpOpcodes.Undefined, () => PushPrimitiveReference(undefined));
