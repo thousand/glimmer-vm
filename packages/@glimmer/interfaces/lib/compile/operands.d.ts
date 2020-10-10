@@ -1,7 +1,7 @@
 import { Option } from '../core';
 import * as WireFormat from './wire-format';
 import { HandleResult } from '../template';
-import { HighLevelBuilderOp, CompileActions, ArgsOptions } from './encoder';
+import { HighLevelBuilderOp, CompileAction, ArgsOptions } from './encoder';
 
 export interface ArrayOperand {
   type: 'array';
@@ -58,7 +58,7 @@ export interface ArgsOperand {
 
 export interface OptionOperand {
   type: 'option';
-  value: Option<CompileActions>;
+  value: Option<CompileAction[]>;
 }
 
 export interface InlineBlockOperand {

@@ -6,7 +6,7 @@ import { EncoderImpl, op } from '../encoder';
 import {
   ContentType,
   Op,
-  CompileActions,
+  CompileAction,
   CompileTimeCompilationContext,
   TemplateCompilationContext,
 } from '@glimmer/interfaces';
@@ -14,8 +14,8 @@ import { ContentTypeSwitchCases } from './conditional';
 import { concat } from '../../syntax/concat';
 import { MacrosImpl } from '../../syntax/macros';
 
-export function main(): CompileActions {
-  return [op(Op.Main, $s0), invokePreparedComponent(false, false, true)];
+export function main(): CompileAction[] {
+  return [op(Op.Main, $s0), ...invokePreparedComponent<CompileAction[]>(false, false, true)];
 }
 
 /**
@@ -26,28 +26,26 @@ export function main(): CompileActions {
  * @param trusting whether to interpolate a string as raw HTML (corresponds to
  * triple curlies)
  */
-export function StdAppend(trusting: boolean): CompileActions {
-  return [
-    ContentTypeSwitchCases((when) => {
-      when(ContentType.String, () => {
-        if (trusting) {
-          return [op(Op.AssertSame), op(Op.AppendHTML)];
-        } else {
-          return op(Op.AppendText);
-        }
-      });
+export function StdAppend(trusting: boolean): CompileAction[] {
+  return ContentTypeSwitchCases((when) => {
+    when(ContentType.String, () => {
+      if (trusting) {
+        return [op(Op.AssertSame), op(Op.AppendHTML)];
+      } else {
+        return [op(Op.AppendText)];
+      }
+    });
 
-      when(ContentType.Component, () => [
-        op(Op.PushCurriedComponent),
-        op(Op.PushDynamicComponentInstance),
-        InvokeBareComponent(),
-      ]);
+    when(ContentType.Component, () => [
+      op(Op.PushCurriedComponent),
+      op(Op.PushDynamicComponentInstance),
+      ...InvokeBareComponent(),
+    ]);
 
-      when(ContentType.SafeString, () => [op(Op.AssertSame), op(Op.AppendSafeHTML)]);
-      when(ContentType.Fragment, () => [op(Op.AssertSame), op(Op.AppendDocumentFragment)]);
-      when(ContentType.Node, () => [op(Op.AssertSame), op(Op.AppendNode)]);
-    }),
-  ];
+    when(ContentType.SafeString, () => [op(Op.AssertSame), op(Op.AppendSafeHTML)]);
+    when(ContentType.Fragment, () => [op(Op.AssertSame), op(Op.AppendDocumentFragment)]);
+    when(ContentType.Node, () => [op(Op.AssertSame), op(Op.AppendNode)]);
+  });
 }
 
 export function compileStd(context: CompileTimeCompilationContext): StdLib {
@@ -68,7 +66,7 @@ const STDLIB_META = {
   size: 0,
 };
 
-function build(program: CompileTimeCompilationContext, callback: () => CompileActions): number {
+function build(program: CompileTimeCompilationContext, callback: () => CompileAction[]): number {
   let encoder = new EncoderImpl();
   let macros = new MacrosImpl();
 

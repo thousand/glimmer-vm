@@ -3,9 +3,8 @@ import {
   CompilerBuffer,
   CompileTimeHeap,
   Statements,
-  StatementCompileActions,
+  StatementCompileAction,
   WireFormat,
-  Unhandled,
   TemplateCompilationContext,
   HandleResult,
 } from '@glimmer/interfaces';
@@ -16,14 +15,14 @@ import { namedBlocks, expectLooseFreeVariable } from './utils';
 export function compileInline(
   sexp: Statements.Append,
   context: TemplateCompilationContext
-): StatementCompileActions | Unhandled {
+): StatementCompileAction[] {
   return context.syntax.macros.inlines.compile(sexp, context);
 }
 
 export function compileBlock(
   block: WireFormat.Statements.Block,
   context: TemplateCompilationContext
-): StatementCompileActions {
+): StatementCompileAction[] {
   let [, name, params, hash, named] = block;
   let blocks = namedBlocks(named, context.meta);
 
@@ -34,7 +33,7 @@ export function compileBlock(
   );
 
   if (typeof nameOrError !== 'string') {
-    return nameOrError;
+    return [nameOrError];
   }
 
   return context.syntax.macros.blocks.compile(nameOrError, params, hash, blocks, context);

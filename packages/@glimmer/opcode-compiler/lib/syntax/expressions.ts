@@ -1,7 +1,7 @@
 import {
   ContainingMetadata,
   HighLevelErrorOpcode,
-  ExpressionCompileActions,
+  ExpressionCompileAction,
   Expressions,
   ExpressionSexpOpcode,
   HighLevelResolutionOpcode,
@@ -16,7 +16,7 @@ import { Call, PushPrimitiveReference } from '../opcode-builder/helpers/vm';
 import { expectLooseFreeVariable } from '../utils';
 import { Compilers } from './compilers';
 
-export const EXPRESSIONS = new Compilers<ExpressionSexpOpcode, ExpressionCompileActions>();
+export const EXPRESSIONS = new Compilers<ExpressionSexpOpcode, ExpressionCompileAction>();
 
 EXPRESSIONS.add(SexpOpcodes.Concat, ([, parts]) => {
   let out = [];
@@ -107,7 +107,13 @@ EXPRESSIONS.add(SexpOpcodes.GetFreeAsFallback, ([, freeVar, path], meta) => {
 
     return withPath(op(Op.ResolveMaybeLocal, name), path);
   } else {
-    return withPath([op(Op.GetVariable, 0), op(Op.GetProperty, meta.upvars![freeVar])], path);
+    let out = [op(Op.GetVariable, 0), op(Op.GetProperty, meta.upvars![freeVar])];
+
+    if (path !== undefined && path.length > 0) {
+      out.push(...expandPath(path));
+    }
+
+    return out;
   }
 });
 
@@ -140,15 +146,20 @@ EXPRESSIONS.add(SexpOpcodes.GetFreeAsHelperHeadOrThisFallback, ([, freeVar, path
   }
 });
 
-function withPath(expr: ExpressionCompileActions, path?: string[]) {
+function withPath(expr: ExpressionCompileAction, path?: string[]) {
   if (path === undefined || path.length === 0) return expr;
-  if (!Array.isArray(expr)) expr = [expr];
+
+  return [expr, ...expandPath(path)];
+}
+
+function expandPath(path: string[]) {
+  let expanded = [];
 
   for (let i = 0; i < path.length; i++) {
-    expr.push(op(Op.GetProperty, path[i]));
+    expanded.push(op(Op.GetProperty, path[i]));
   }
 
-  return expr;
+  return expanded;
 }
 
 EXPRESSIONS.add(SexpOpcodes.Undefined, () => PushPrimitiveReference(undefined));

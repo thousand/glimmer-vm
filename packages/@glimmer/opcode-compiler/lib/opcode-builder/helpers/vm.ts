@@ -5,16 +5,16 @@ import {
   Op,
   MachineOp,
   OpcodeWrapperOp,
-  CompileActions,
-  StatementCompileActions,
-  ExpressionCompileActions,
+  CompileAction,
+  StatementCompileAction,
+  ExpressionCompileAction,
   WireFormat,
 } from '@glimmer/interfaces';
 import { op } from '../encoder';
 import { isSmallInt } from '@glimmer/util';
 import { SimpleArgs } from './shared';
 
-export type StatementBlock = () => StatementCompileActions;
+export type StatementBlock = () => StatementCompileAction[];
 export type Primitive = undefined | null | boolean | number | string;
 
 export interface CompileHelper {
@@ -27,7 +27,7 @@ export interface CompileHelper {
  * Push a reference onto the stack corresponding to a statically known primitive
  * @param value A JavaScript primitive (undefined, null, boolean, number or string)
  */
-export function PushPrimitiveReference(value: Primitive): CompileActions {
+export function PushPrimitiveReference(value: Primitive): CompileAction[] {
   return [PushPrimitive(value), op(Op.PrimitiveReference)];
 }
 
@@ -50,10 +50,10 @@ export function PushPrimitive(primitive: Primitive): OpcodeWrapperOp {
  * @param compile.params An optional list of expressions to compile
  * @param compile.hash An optional list of named arguments (name + expression) to compile
  */
-export function Call({ handle, params, hash }: CompileHelper): ExpressionCompileActions {
+export function Call({ handle, params, hash }: CompileHelper): ExpressionCompileAction[] {
   return [
     op(MachineOp.PushFrame),
-    SimpleArgs({ params, hash, atNames: false }),
+    ...SimpleArgs({ params, hash, atNames: false }),
     op(Op.Helper, handle),
     op(MachineOp.PopFrame),
     op(Op.Fetch, $v0),
@@ -68,11 +68,11 @@ export function Call({ handle, params, hash }: CompileHelper): ExpressionCompile
  * @param names a list of dynamic scope names
  * @param block a function that returns a list of statements to evaluate
  */
-export function DynamicScope(names: string[], block: StatementBlock): StatementCompileActions {
+export function DynamicScope(names: string[], block: StatementBlock): StatementCompileAction[] {
   return [
     op(Op.PushDynamicScope),
     op(Op.BindDynamicScope, strArray(names)),
-    block(),
+    ...block(),
     op(Op.PopDynamicScope),
   ];
 }

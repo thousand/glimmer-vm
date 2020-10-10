@@ -1,7 +1,7 @@
 import * as WireFormat from './wire-format';
-import { NamedBlocks, ContainingMetadata, Unhandled } from '../template';
+import { NamedBlocks, ContainingMetadata } from '../template';
 import { TemplateCompilationContext } from '../program';
-import { StatementCompileActions } from './encoder';
+import { StatementCompileAction } from './encoder';
 import { CompileTimeResolver } from '../serialize';
 import { Option } from '../core';
 
@@ -20,14 +20,14 @@ export type BlockMacro = (
   hash: WireFormat.Core.Hash,
   blocks: NamedBlocks,
   context: MacroContext
-) => StatementCompileActions;
+) => StatementCompileAction[];
 
 export type AppendMacro = (
   name: string,
   params: Option<WireFormat.Core.Params>,
   hash: Option<WireFormat.Core.Hash>,
   context: MacroContext
-) => StatementCompileActions | Unhandled;
+) => StatementCompileAction[];
 
 export type MissingBlockMacro = (
   name: string,
@@ -35,7 +35,7 @@ export type MissingBlockMacro = (
   hash: WireFormat.Core.Hash,
   blocks: NamedBlocks,
   context: MacroContext
-) => StatementCompileActions;
+) => StatementCompileAction[];
 
 export interface MacroBlocks {
   add(name: string, func: BlockMacro): void;
@@ -46,7 +46,7 @@ export interface MacroBlocks {
     hash: WireFormat.Core.Hash,
     blocks: NamedBlocks,
     context: TemplateCompilationContext
-  ): StatementCompileActions;
+  ): StatementCompileAction[];
 }
 
 export class MacroInlines {
@@ -55,5 +55,5 @@ export class MacroInlines {
   compile(
     sexp: WireFormat.Statements.Append,
     context: TemplateCompilationContext
-  ): StatementCompileActions | Unhandled;
+  ): StatementCompileAction[];
 }

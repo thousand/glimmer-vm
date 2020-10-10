@@ -5,7 +5,7 @@ import {
   Op,
   ResolveHandle,
   SexpOpcodes,
-  StatementCompileActions,
+  StatementCompileAction,
   StatementSexpOpcode,
   WellKnownAttrName,
   WellKnownTagName,
@@ -24,7 +24,7 @@ import { arr, strArray, templateMeta } from '../opcode-builder/operands';
 import { expectLooseFreeVariable, isStrictFreeVariable } from '../utils';
 import { Compilers } from './compilers';
 
-export const STATEMENTS = new Compilers<StatementSexpOpcode, StatementCompileActions>();
+export const STATEMENTS = new Compilers<StatementSexpOpcode, StatementCompileAction>();
 
 const INFLATE_ATTR_TABLE: {
   [I in WellKnownAttrName]: string;
@@ -59,7 +59,7 @@ STATEMENTS.add(SexpOpcodes.Modifier, (sexp, meta) => {
     name: stringName,
     andThen: (handle) => [
       op(MachineOp.PushFrame),
-      SimpleArgs({ params, hash, atNames: false }),
+      ...SimpleArgs({ params, hash, atNames: false }),
       op(Op.Modifier, handle),
       op(MachineOp.PopFrame),
     ],
@@ -99,7 +99,7 @@ STATEMENTS.add(SexpOpcodes.TrustingComponentAttr, ([, name, value, namespace]) =
 ]);
 
 STATEMENTS.add(SexpOpcodes.OpenElement, ([, tag]) => {
-  return op(Op.OpenElement, inflateTagName(tag));
+  return [op(Op.OpenElement, inflateTagName(tag))];
 });
 
 STATEMENTS.add(SexpOpcodes.OpenElementWithSplat, ([, tag]) => {
@@ -123,7 +123,7 @@ STATEMENTS.add(SexpOpcodes.Component, ([, tag, elementBlock, args, blocks], meta
       staticTemplate: (layoutHandle, capabilities, template, { blocks, elementBlock }) => {
         return [
           op(Op.PushComponentDefinition, layoutHandle),
-          InvokeStaticComponent({
+          ...InvokeStaticComponent({
             capabilities,
             layout: template,
             elementBlock,
@@ -136,7 +136,7 @@ STATEMENTS.add(SexpOpcodes.Component, ([, tag, elementBlock, args, blocks], meta
       dynamicTemplate: (layoutHandle, capabilities, { elementBlock, blocks }) => {
         return [
           op(Op.PushComponentDefinition, layoutHandle),
-          InvokeComponent({
+          ...InvokeComponent({
             capabilities,
             elementBlock,
             params: null,
@@ -247,13 +247,13 @@ STATEMENTS.add(SexpOpcodes.Block, (sexp) => {
 STATEMENTS.add(SexpOpcodes.InElement, ([, block, guid, destination, insertBefore], meta) => {
   return ReplayableIf({
     args() {
-      let actions: StatementCompileActions = [];
+      let actions: StatementCompileAction[] = [];
 
       // this order is important
       actions.push(op(HighLevelResolutionOpcode.Expr, guid));
 
       if (insertBefore === undefined) {
-        actions.push(PushPrimitiveReference(undefined));
+        actions.push(...PushPrimitiveReference(undefined));
       } else {
         actions.push(op(HighLevelResolutionOpcode.Expr, insertBefore));
       }
@@ -266,7 +266,7 @@ STATEMENTS.add(SexpOpcodes.InElement, ([, block, guid, destination, insertBefore
     ifTrue() {
       return [
         op(Op.PushRemoteElement),
-        InvokeStaticBlock(compilableBlock(block, meta)),
+        ...InvokeStaticBlock(compilableBlock(block, meta)),
         op(Op.PopRemoteElement),
       ];
     },

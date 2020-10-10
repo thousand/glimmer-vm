@@ -3,9 +3,8 @@ import {
   WireFormat,
   NamedBlocks,
   TemplateCompilationContext,
-  StatementCompileActions,
+  StatementCompileAction,
   Option,
-  Unhandled,
   SexpOpcodes,
   CompileTimeResolver,
   ContainingMetadata,
@@ -14,7 +13,6 @@ import {
   Macros,
 } from '@glimmer/interfaces';
 import { dict, assert } from '@glimmer/util';
-import { UNHANDLED } from './concat';
 import { expectLooseFreeVariable, isGet, loosePathName } from '../utils';
 
 export class MacrosImpl implements Macros {
@@ -38,7 +36,7 @@ export type BlockMacro = (
   hash: WireFormat.Core.Hash,
   blocks: NamedBlocks,
   context: MacroContext
-) => StatementCompileActions;
+) => StatementCompileAction[];
 
 export type MissingBlockMacro = (
   name: string,
@@ -46,7 +44,7 @@ export type MissingBlockMacro = (
   hash: WireFormat.Core.Hash,
   blocks: NamedBlocks,
   context: MacroContext
-) => StatementCompileActions;
+) => StatementCompileAction[];
 
 export class Blocks implements MacroBlocks {
   private names = dict<number>();
@@ -68,7 +66,7 @@ export class Blocks implements MacroBlocks {
     hash: WireFormat.Core.Hash,
     blocks: NamedBlocks,
     context: TemplateCompilationContext
-  ): StatementCompileActions {
+  ): StatementCompileAction[] {
     let index = this.names[name];
 
     let macroContext = {
@@ -95,7 +93,7 @@ export type AppendMacro = (
   params: Option<WireFormat.Core.Params>,
   hash: Option<WireFormat.Core.Hash>,
   context: MacroContext
-) => StatementCompileActions | Unhandled;
+) => StatementCompileAction[];
 
 export class Inlines implements MacroInlines {
   private names = dict<number>();
@@ -111,17 +109,14 @@ export class Inlines implements MacroInlines {
     this.missing = func as AppendMacro;
   }
 
-  compile(
-    sexp: AppendSyntax,
-    context: TemplateCompilationContext
-  ): StatementCompileActions | Unhandled {
+  compile(sexp: AppendSyntax, context: TemplateCompilationContext): StatementCompileAction[] {
     let [, value] = sexp;
 
     // TODO: Fix this so that expression macros can return
     // things like components, so that {{component foo}}
     // is the same as {{(component foo)}}
 
-    if (!Array.isArray(value)) return UNHANDLED;
+    if (!Array.isArray(value)) return [];
 
     let name: string;
     let params: Option<WireFormat.Core.Params>;
@@ -135,7 +130,7 @@ export class Inlines implements MacroInlines {
       );
 
       if (typeof nameOrError !== 'string') {
-        return nameOrError;
+        return [nameOrError];
       }
 
       name = nameOrError;
@@ -145,14 +140,14 @@ export class Inlines implements MacroInlines {
       let pathName = loosePathName(value, context.meta);
 
       if (pathName === null) {
-        return UNHANDLED;
+        return [];
       }
 
       name = pathName;
       params = null;
       hash = null;
     } else {
-      return UNHANDLED;
+      return [];
     }
 
     let index = this.names[name];
@@ -169,7 +164,7 @@ export class Inlines implements MacroInlines {
       let func = this.funcs[index];
       return func(name, params, hash, macroContext);
     } else {
-      return UNHANDLED;
+      return [];
     }
   }
 }

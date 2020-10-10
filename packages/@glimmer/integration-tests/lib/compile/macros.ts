@@ -3,10 +3,8 @@ import {
   EMPTY_BLOCKS,
   invokeStaticBlock,
   MacrosImpl,
-  NONE,
   resolveLayoutForTag,
   staticComponent,
-  UNHANDLED,
 } from '@glimmer/opcode-compiler';
 
 export class TestMacros extends MacrosImpl {
@@ -30,7 +28,7 @@ export class TestMacros extends MacrosImpl {
         return staticComponent(component, [params, hashToArgs(hash), blocks]);
       }
 
-      return NONE;
+      return [];
     });
 
     inlines.addMissing((name, params, hash, context) => {
@@ -40,7 +38,7 @@ export class TestMacros extends MacrosImpl {
         return staticComponent(component, [params!, hashToArgs(hash), EMPTY_BLOCKS]);
       }
 
-      return UNHANDLED;
+      return [];
     });
   }
 }

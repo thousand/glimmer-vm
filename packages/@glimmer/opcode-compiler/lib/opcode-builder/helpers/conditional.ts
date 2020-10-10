@@ -2,21 +2,21 @@ import { label } from '../operands';
 import {
   Op,
   MachineOp,
-  CompileActions,
-  StatementCompileActions,
   HighLevelBuilderOpcode,
+  CompileAction,
+  StatementCompileAction,
 } from '@glimmer/interfaces';
 import { op } from '../encoder';
 
-export type When = (match: number, callback: () => CompileActions) => void;
+export type When = (match: number, callback: () => CompileAction[]) => void;
 
-export function ContentTypeSwitchCases(callback: (when: When) => void): CompileActions {
+export function ContentTypeSwitchCases(callback: (when: When) => void): CompileAction[] {
   // Setup the switch DSL
-  let clauses: Array<{ match: number; label: string; callback: () => CompileActions }> = [];
+  let clauses: Array<{ match: number; label: string; callback: () => CompileAction[] }> = [];
 
   let count = 0;
 
-  function when(match: number, callback: () => CompileActions): void {
+  function when(match: number, callback: () => CompileAction[]): void {
     clauses.push({ match, callback, label: `CLAUSE${count++}` });
   }
 
@@ -24,7 +24,7 @@ export function ContentTypeSwitchCases(callback: (when: When) => void): CompileA
   callback(when);
 
   // Emit the opcodes for the switch
-  let out: CompileActions = [
+  let out: CompileAction[] = [
     op(Op.Enter, 1),
     op(Op.ContentType),
     op(HighLevelBuilderOpcode.StartLabels),
@@ -41,7 +41,7 @@ export function ContentTypeSwitchCases(callback: (when: When) => void): CompileA
   for (let i = clauses.length - 1; i >= 0; i--) {
     let clause = clauses[i];
 
-    out.push(op(HighLevelBuilderOpcode.Label, clause.label), op(Op.Pop, 1), clause.callback());
+    out.push(op(HighLevelBuilderOpcode.Label, clause.label), op(Op.Pop, 1), ...clause.callback());
 
     // The first match is special: it is placed directly before the END
     // label, so no additional jump is needed at the end of it.
@@ -120,7 +120,7 @@ export function ContentTypeSwitchCases(callback: (when: When) => void): CompileA
  * encountered, the program jumps to -1 rather than the END label,
  * and the PopFrame opcode is not needed.
  */
-export function Replayable<T extends CompileActions | StatementCompileActions>({
+export function Replayable<T extends CompileAction[] | StatementCompileAction[]>({
   args,
   body,
 }: {
@@ -197,7 +197,7 @@ export function Replayable<T extends CompileActions | StatementCompileActions>({
  * routine, as it can reuse the DOM block and is always only a single
  * frame deep.
  */
-export function ReplayableIf<T extends CompileActions | StatementCompileActions>({
+export function ReplayableIf<T extends CompileAction[] | StatementCompileAction[]>({
   args,
   ifTrue,
   ifFalse,

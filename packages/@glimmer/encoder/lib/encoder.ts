@@ -16,7 +16,7 @@ export class InstructionEncoderImpl implements InstructionEncoder {
   encode(type: MachineOp, machine: OpcodeSize.MACHINE_MASK, ...operands: Operand[]): void;
   encode(type: Op, machine: 0, ...operands: Operand[]): void;
   encode(type: Op | MachineOp, machine: 0 | OpcodeSize.MACHINE_MASK) {
-    if ((type as number) > OpcodeSize.TYPE_SIZE) {
+    if (DEBUG && (type as number) > OpcodeSize.TYPE_SIZE) {
       throw new Error(`Opcode type over 8-bits. Got ${type}.`);
     }
 

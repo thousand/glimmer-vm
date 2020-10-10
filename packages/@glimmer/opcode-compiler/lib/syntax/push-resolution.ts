@@ -3,7 +3,7 @@ import {
   CompileTimeResolver,
   ContainingMetadata,
   Encoder,
-  ExpressionCompileActions,
+  ExpressionCompileAction,
   HighLevelResolutionOp,
   HighLevelResolutionOpcode,
   IfResolvedOp,
@@ -13,11 +13,9 @@ import {
   TemplateCompilationContext,
   WireFormat,
 } from '@glimmer/interfaces';
-import { emptyArray, EMPTY_STRING_ARRAY, exhausted } from '@glimmer/util';
+import { exhausted } from '@glimmer/util';
 import { error, op } from '../opcode-builder/encoder';
-import { CompilePositional } from '../opcode-builder/helpers/shared';
 import { Call, PushPrimitive } from '../opcode-builder/helpers/vm';
-import { strArray } from '../opcode-builder/operands';
 import { concatExpressions } from './concat';
 import { EXPRESSIONS } from './expressions';
 
@@ -45,7 +43,7 @@ export default function pushResolutionOp(
       let name = context.meta.upvars![upvar];
 
       let resolvedHelper = resolver.lookupHelper(name, context.meta.referrer);
-      let expressions: ExpressionCompileActions;
+      let expressions: ExpressionCompileAction[];
 
       if (resolvedHelper) {
         expressions = Call({ handle: resolvedHelper, params: null, hash: null });
@@ -74,7 +72,7 @@ export default function pushResolutionOp(
 export function expr(
   expression: WireFormat.Expression,
   meta: ContainingMetadata
-): ExpressionCompileActions {
+): ExpressionCompileAction | ExpressionCompileAction[] {
   if (Array.isArray(expression)) {
     return EXPRESSIONS.compile(expression, meta);
   } else {
@@ -82,40 +80,10 @@ export function expr(
   }
 }
 
-export function compileSimpleArgs(
-  params: Option<WireFormat.Core.Params>,
-  hash: Option<WireFormat.Core.Hash>,
-  atNames: boolean
-): ExpressionCompileActions {
-  let out: ExpressionCompileActions = [];
-
-  let { count, actions } = CompilePositional(params);
-
-  out.push(actions);
-
-  let flags = count << 4;
-
-  if (atNames) flags |= 0b1000;
-
-  let names = emptyArray<string>();
-
-  if (hash) {
-    names = hash[0];
-    let val = hash[1];
-    for (let i = 0; i < val.length; i++) {
-      out.push(op(HighLevelResolutionOpcode.Expr, val[i]));
-    }
-  }
-
-  out.push(op(Op.PushArgs, strArray(names), strArray(EMPTY_STRING_ARRAY), flags));
-
-  return out;
-}
-
 function ifResolved(
   context: TemplateCompilationContext,
   { op1 }: IfResolvedOp
-): ExpressionCompileActions {
+): ExpressionCompileAction[] {
   let { kind, name, andThen, span } = op1;
 
   let resolved = resolve(context.syntax.program.resolver, kind, name, context.meta.referrer);
@@ -123,7 +91,7 @@ function ifResolved(
   if (resolved !== null) {
     return andThen(resolved);
   } else {
-    return error(`Unexpected ${kind} ${name}`, span.start, span.end);
+    return [error(`Unexpected ${kind} ${name}`, span.start, span.end)];
   }
 }
 

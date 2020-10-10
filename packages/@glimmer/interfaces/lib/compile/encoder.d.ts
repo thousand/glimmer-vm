@@ -119,7 +119,7 @@ export interface CompileInlineOp extends HighLevelOpcode {
   op: HighLevelCompileOpcode.CompileInline;
   op1: {
     inline: WireFormat.Statements.Append;
-    ifUnhandled: (sexp: WireFormat.Statements.Append) => ExpressionCompileActions;
+    ifUnhandled: (sexp: WireFormat.Statements.Append) => ExpressionCompileAction[];
   };
 }
 
@@ -146,7 +146,7 @@ export interface IfResolvedOp extends HighLevelOpcode {
   op1: {
     kind: ResolveHandle;
     name: string;
-    andThen: (handle: number) => ExpressionCompileActions;
+    andThen: (handle: number) => ExpressionCompileAction[];
     span: {
       start: number;
       end: number;
@@ -173,12 +173,12 @@ export interface IfResolvedComponentOp extends HighLevelOpcode {
       capabilities: ComponentCapabilities,
       template: CompilableProgram,
       blocks: IfResolvedComponentBlocks
-    ) => StatementCompileActions;
+    ) => StatementCompileAction[];
     dynamicTemplate: (
       handle: number,
       capabilities: ComponentCapabilities,
       blocks: IfResolvedComponentBlocks
-    ) => StatementCompileActions;
+    ) => StatementCompileAction[];
   };
 }
 
@@ -221,9 +221,7 @@ interface HighLevelOpcode {
 export interface OpcodeWrapperOp extends HighLevelOpcode {
   type: HighLevelOpcodeType.OpcodeWrapper;
   op: BuilderOpcode;
-  op1?: SingleBuilderOperand | BuilderHandleThunk;
-  op2?: SingleBuilderOperand | BuilderHandleThunk;
-  op3?: SingleBuilderOperand | BuilderHandleThunk;
+  op1: SingleBuilderOperand[];
 }
 
 export interface StartLabelsOp extends HighLevelOpcode {
@@ -278,25 +276,14 @@ export type HighLevelErrorOp = AllOpMap[HighLevelErrorOpcode];
 
 export type HighLevelBuilderOperands = [HighLevelBuilderOp['op1']];
 
-export type NO_ACTION = { 'no-action': true };
-
 export type CompileOp = OpcodeWrapperOp | HighLevelBuilderOp;
-export type CompileAction = OpcodeWrapperOp | HighLevelBuilderOp | NO_ACTION;
-export interface NestedCompileActions extends Array<CompileActions | CompileAction> {}
-export type CompileActions = CompileAction | NestedCompileActions;
+export type CompileAction = OpcodeWrapperOp | HighLevelBuilderOp;
 
 export type StatementCompileOp = CompileOp | HighLevelCompileOp | HighLevelResolutionOp;
-export type StatementCompileAction = StatementCompileOp | CompileErrorOp | NO_ACTION;
-export interface NestedStatementCompileActions
-  extends Array<StatementCompileAction | NestedStatementCompileActions> {}
-export type StatementCompileActions = NestedStatementCompileActions | StatementCompileAction;
+export type StatementCompileAction = StatementCompileOp | CompileErrorOp;
 
 export type ExpressionCompileOp = CompileOp | HighLevelResolutionOp | ExprOp;
-export type ExpressionCompileAction = ExpressionCompileOp | CompileErrorOp | NO_ACTION;
-export interface NestedExpressionCompileActions
-  extends Array<ExpressionCompileAction | NestedExpressionCompileActions> {}
-
-export type ExpressionCompileActions = NestedExpressionCompileActions | ExpressionCompileAction;
+export type ExpressionCompileAction = ExpressionCompileOp | CompileErrorOp;
 
 export interface EncoderError {
   problem: string;
@@ -332,7 +319,7 @@ export interface Encoder {
   push(
     constants: CompileTimeConstants,
     opcode: BuilderOpcode,
-    ...args: SingleBuilderOperands
+    ...args: SingleBuilderOperand[]
   ): void;
 
   /**

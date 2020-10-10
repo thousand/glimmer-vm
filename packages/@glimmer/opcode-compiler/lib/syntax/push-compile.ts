@@ -3,7 +3,7 @@ import {
   HighLevelCompileOp,
   HighLevelCompileOpcode,
   IfResolvedComponentOp,
-  StatementCompileActions,
+  StatementCompileAction,
   TemplateCompilationContext,
 } from '@glimmer/interfaces';
 import { compilableBlock } from '../compilable-template';
@@ -11,7 +11,7 @@ import { compileBlock, compileInline } from '../compiler';
 import { InvokeDynamicComponent } from '../opcode-builder/helpers/components';
 import { resolveLayoutForTag } from '../resolver';
 import { namedBlocks } from '../utils';
-import { concatStatements, isHandled } from './concat';
+import { concatStatements } from './concat';
 
 export default function pushCompileOp(
   context: TemplateCompilationContext,
@@ -23,7 +23,7 @@ export default function pushCompileOp(
 function compileOp(
   context: TemplateCompilationContext,
   action: HighLevelCompileOp
-): StatementCompileActions {
+): StatementCompileAction[] {
   switch (action.op) {
     case HighLevelCompileOpcode.CompileBlock:
       return CompileBlockOp(context, action);
@@ -46,12 +46,12 @@ function CompileBlockOp(
 function CompileInlineOp(
   context: TemplateCompilationContext,
   op: import('@glimmer/interfaces').CompileInlineOp
-): StatementCompileActions {
+): StatementCompileAction[] {
   let { inline, ifUnhandled } = op.op1;
 
   let returned = compileInline(inline, context);
 
-  if (isHandled(returned)) {
+  if (returned.length > 0) {
     return returned;
   } else {
     return ifUnhandled(inline);
@@ -61,7 +61,7 @@ function CompileInlineOp(
 function DynamicComponent(
   context: TemplateCompilationContext,
   action: DynamicComponentOp
-): StatementCompileActions {
+): StatementCompileAction[] {
   let { definition, elementBlock, params, args, blocks, atNames, curried } = action.op1;
 
   let elementParamsBlock = elementBlock ? compilableBlock([elementBlock], context.meta) : null;
@@ -83,7 +83,7 @@ function DynamicComponent(
 function IfResolvedComponent(
   context: TemplateCompilationContext,
   action: IfResolvedComponentOp
-): StatementCompileActions {
+): StatementCompileAction[] {
   let { name, elementBlock, blocks, staticTemplate, dynamicTemplate } = action.op1;
   let component = resolveLayoutForTag(name, {
     resolver: context.syntax.program.resolver,

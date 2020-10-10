@@ -110,10 +110,6 @@ export interface CompilerArtifacts {
   constants: ConstantPool;
 }
 
-export interface Unhandled {
-  'not-handled': true;
-}
-
 export interface CompilableTemplate<S extends SymbolTable = SymbolTable> {
   symbolTable: S;
   compile(context: SyntaxCompilationContext): HandleResult;

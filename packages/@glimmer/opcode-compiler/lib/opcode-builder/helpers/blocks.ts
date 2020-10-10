@@ -4,7 +4,7 @@ import {
   MachineOp,
   Op,
   Option,
-  StatementCompileActions,
+  StatementCompileAction,
   SymbolTable,
   WireFormat,
   CompilableTemplate,
@@ -24,9 +24,9 @@ import { SimpleArgs } from './shared';
 export function YieldBlock(
   to: number,
   params: Option<WireFormat.Core.Params>
-): StatementCompileActions {
+): StatementCompileAction[] {
   return [
-    SimpleArgs({ params, hash: null, atNames: true }),
+    ...SimpleArgs({ params, hash: null, atNames: true }),
     op(Op.GetBlock, to),
     op(Op.SpreadBlock),
     op(Op.CompileBlock),
@@ -42,7 +42,7 @@ export function YieldBlock(
  *
  * @param block An optional Compilable block
  */
-export function PushYieldableBlock(block: Option<CompilableBlock>): StatementCompileActions {
+export function PushYieldableBlock(block: Option<CompilableBlock>): StatementCompileAction[] {
   return [
     PushSymbolTable(block && block.symbolTable),
     op(Op.PushBlockScope),
@@ -55,7 +55,7 @@ export function PushYieldableBlock(block: Option<CompilableBlock>): StatementCom
  *
  * @param block a Compilable block
  */
-export function InvokeStaticBlock(block: CompilableBlock): StatementCompileActions {
+export function InvokeStaticBlock(block: CompilableBlock): StatementCompileAction[] {
   return [
     op(MachineOp.PushFrame),
     PushCompilable(block),
@@ -75,7 +75,7 @@ export function InvokeStaticBlock(block: CompilableBlock): StatementCompileActio
 export function InvokeStaticBlockWithStack(
   block: CompilableBlock,
   callerCount: number
-): StatementCompileActions {
+): StatementCompileAction[] {
   let { parameters } = block.symbolTable;
   let calleeCount = parameters.length;
   let count = Math.min(callerCount, calleeCount);
@@ -84,7 +84,7 @@ export function InvokeStaticBlockWithStack(
     return InvokeStaticBlock(block);
   }
 
-  let out: StatementCompileActions = [];
+  let out: StatementCompileAction[] = [];
 
   out.push(op(MachineOp.PushFrame));
 

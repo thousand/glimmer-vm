@@ -1,27 +1,24 @@
 import {
   CompilableBlock,
   CompilableProgram,
-  CompileActions,
+  CompileAction,
   CompileTimeComponent,
   ComponentCapabilities,
   ContainingMetadata,
-  ExpressionCompileActions,
+  ExpressionCompileAction,
   HighLevelBuilderOpcode,
   HighLevelResolutionOpcode,
   LayoutWithContext,
   MachineOp,
   NamedBlocks,
-  NestedStatementCompileActions,
   Op,
   Option,
-  StatementCompileActions,
-  Unhandled,
+  StatementCompileAction,
   WireFormat,
 } from '@glimmer/interfaces';
-import { $s0, $s1, $sp, $v0, SavedRegister } from '@glimmer/vm';
+import { $s0, $s1, $sp, $v0 } from '@glimmer/vm';
 import { compilableBlock } from '../../compilable-template';
 import { resolveLayoutForTag } from '../../resolver';
-import { NONE, UNHANDLED } from '../../syntax/concat';
 import { MacroContext } from '../../syntax/macros';
 import { NamedBlocksImpl } from '../../utils';
 import { MINIMAL_CAPABILITIES } from '../delegate';
@@ -39,7 +36,7 @@ import { CompileArgs, meta, SimpleArgs } from './shared';
 
 export const ATTRS_BLOCK = '&attrs';
 
-export type Block = () => CompileActions;
+export type Block = () => CompileAction[];
 
 interface AnyComponent {
   elementBlock: Option<CompilableBlock>;
@@ -87,7 +84,7 @@ export function StaticComponentHelper(
   tag: string,
   hash: WireFormat.Core.Hash,
   template: Option<CompilableBlock>
-): StatementCompileActions | Unhandled {
+): StatementCompileAction[] {
   let component = resolveLayoutForTag(tag, context);
 
   if (component !== null) {
@@ -100,10 +97,10 @@ export function StaticComponentHelper(
         }
       }
 
-      let out: StatementCompileActions = [op(Op.PushComponentDefinition, handle)];
+      let out: StatementCompileAction[] = [op(Op.PushComponentDefinition, handle)];
 
       out.push(
-        InvokeStaticComponent({
+        ...InvokeStaticComponent({
           capabilities,
           layout: compilable,
           elementBlock: null,
@@ -117,7 +114,7 @@ export function StaticComponentHelper(
     }
   }
 
-  return UNHANDLED;
+  return [];
 }
 
 export function InvokeStaticComponent({
@@ -127,7 +124,7 @@ export function InvokeStaticComponent({
   params,
   hash,
   blocks,
-}: StaticComponent): StatementCompileActions {
+}: StaticComponent): StatementCompileAction[] {
   let { symbolTable } = layout;
 
   let bailOut = symbolTable.hasEval || capabilities.prepareArgs;
@@ -144,16 +141,12 @@ export function InvokeStaticComponent({
     });
   }
 
-  let out: NestedStatementCompileActions = [
-    op(Op.Fetch, $s0),
-    op(Op.Dup, $sp, 1),
-    op(Op.Load, $s0),
-  ];
+  let out: StatementCompileAction[] = [op(Op.Fetch, $s0), op(Op.Dup, $sp, 1), op(Op.Load, $s0)];
 
   let { symbols } = symbolTable;
 
   if (capabilities.createArgs) {
-    out.push(op(MachineOp.PushFrame), SimpleArgs({ params, hash, atNames: true }));
+    out.push(op(MachineOp.PushFrame), ...SimpleArgs({ params, hash, atNames: true }));
   }
 
   out.push(op(Op.BeginComponentTransaction, $s0));
@@ -192,10 +185,10 @@ export function InvokeStaticComponent({
         }
 
         if (callerBlock) {
-          out.push(PushYieldableBlock(callerBlock));
+          out.push(...PushYieldableBlock(callerBlock));
           bindings.push({ symbol: i + 1, isBlock: true });
         } else {
-          out.push(PushYieldableBlock(null));
+          out.push(...PushYieldableBlock(null));
           bindings.push({ symbol: i + 1, isBlock: true });
         }
 
@@ -232,7 +225,7 @@ export function InvokeStaticComponent({
     }
   }
 
-  out.push([op(Op.Constant, other(layout)), op(Op.CompileBlock), op(MachineOp.InvokeVirtual)]);
+  out.push(op(Op.Constant, other(layout)), op(Op.CompileBlock), op(MachineOp.InvokeVirtual));
 
   if (capabilities.createInstance) {
     out.push(op(Op.DidRenderLayout, $s0));
@@ -252,7 +245,7 @@ export function InvokeStaticComponent({
 export function InvokeDynamicComponent(
   meta: ContainingMetadata,
   { definition, elementBlock, params, hash, atNames, blocks, curried }: DynamicComponent
-): StatementCompileActions {
+): StatementCompileAction[] {
   return Replayable({
     args: () => {
       return {
@@ -268,7 +261,7 @@ export function InvokeDynamicComponent(
           ? op(Op.ResolveCurriedComponent)
           : op(Op.ResolveDynamicComponent, templateMeta(meta.referrer)),
         op(Op.PushDynamicComponentInstance),
-        InvokeComponent({
+        ...InvokeComponent({
           capabilities: true,
           elementBlock,
           params,
@@ -285,23 +278,23 @@ export function InvokeDynamicComponent(
 export function WrappedComponent<R>(
   layout: LayoutWithContext<R>,
   attrsBlockNumber: number
-): StatementCompileActions {
+): StatementCompileAction[] {
   return [
     op(HighLevelBuilderOpcode.StartLabels),
-    WithSavedRegister($s1, () => [
-      op(Op.GetComponentTagName, $s0),
-      op(Op.PrimitiveReference),
-      op(Op.Dup, $sp, 0),
-    ]),
+    op(Op.Fetch, $s1),
+    op(Op.GetComponentTagName, $s0),
+    op(Op.PrimitiveReference),
+    op(Op.Dup, $sp, 0),
+    op(Op.Load, $s1),
     op(Op.JumpUnless, label('BODY')),
     op(Op.Fetch, $s1),
     op(Op.PutComponentOperations),
     op(Op.OpenDynamicElement),
     op(Op.DidCreateElement, $s0),
-    YieldBlock(attrsBlockNumber, null),
+    ...YieldBlock(attrsBlockNumber, null),
     op(Op.FlushElement),
     op(HighLevelBuilderOpcode.Label, 'BODY'),
-    InvokeStaticBlock(blockForLayout(layout)),
+    ...InvokeStaticBlock(blockForLayout(layout)),
     op(Op.Fetch, $s1),
     op(Op.JumpUnless, label('END')),
     op(Op.CloseElement),
@@ -314,17 +307,17 @@ export function WrappedComponent<R>(
 export function StaticComponent(
   component: Option<CompileTimeComponent>,
   args: [WireFormat.Core.Params, WireFormat.Core.Hash, NamedBlocks]
-): StatementCompileActions {
+): StatementCompileAction[] {
   let [params, hash, blocks] = args;
 
-  if (component === null) return NONE;
+  if (component === null) return [];
 
   let { compilable, capabilities, handle } = component;
 
   if (compilable) {
     return [
       op(Op.PushComponentDefinition, handle),
-      InvokeStaticComponent({
+      ...InvokeStaticComponent({
         capabilities: capabilities || MINIMAL_CAPABILITIES,
         layout: compilable,
         elementBlock: null,
@@ -336,7 +329,7 @@ export function StaticComponent(
   } else {
     return [
       op(Op.PushComponentDefinition, handle),
-      InvokeComponent({
+      ...InvokeComponent({
         capabilities: capabilities || MINIMAL_CAPABILITIES,
         elementBlock: null,
         params,
@@ -356,7 +349,7 @@ export function InvokeComponent({
   atNames,
   blocks: namedBlocks,
   layout,
-}: Component): StatementCompileActions {
+}: Component): StatementCompileAction[] {
   let bindableBlocks = !!namedBlocks;
   let bindableAtNames =
     capabilities === true || capabilities.prepareArgs || !!(hash && hash[0].length !== 0);
@@ -369,10 +362,10 @@ export function InvokeComponent({
     op(Op.Load, $s0),
 
     op(MachineOp.PushFrame),
-    CompileArgs({ params, hash, blocks, atNames }),
+    ...CompileArgs({ params, hash, blocks, atNames }),
     op(Op.PrepareArgs, $s0),
-    invokePreparedComponent(blocks.has('default'), bindableBlocks, bindableAtNames, () => {
-      let out: NestedStatementCompileActions;
+    ...invokePreparedComponent(blocks.has('default'), bindableBlocks, bindableAtNames, () => {
+      let out: StatementCompileAction[];
 
       if (layout) {
         out = [PushSymbolTable(layout.symbolTable), PushCompilable(layout), op(Op.CompileBlock)];
@@ -387,13 +380,13 @@ export function InvokeComponent({
   ];
 }
 
-export function invokePreparedComponent<T extends CompileActions | StatementCompileActions>(
+export function invokePreparedComponent<T extends CompileAction[] | StatementCompileAction[]>(
   hasBlock: boolean,
   bindableBlocks: boolean,
   bindableAtNames: boolean,
   populateLayout: Option<() => T> = null
 ): T {
-  let out: StatementCompileActions = [
+  let out: StatementCompileAction[] = [
     op(Op.BeginComponentTransaction, $s0),
     op(Op.PushDynamicScope),
 
@@ -405,7 +398,7 @@ export function invokePreparedComponent<T extends CompileActions | StatementComp
   // to populate the layout earlier if it wants to
   // and do nothing here.
   if (populateLayout) {
-    out.push(populateLayout());
+    out.push(...populateLayout());
   }
 
   out.push(
@@ -414,11 +407,13 @@ export function invokePreparedComponent<T extends CompileActions | StatementComp
 
     op(Op.VirtualRootScope, $s0),
     op(Op.SetVariable, 0),
-    op(Op.SetupForEval, $s0),
+    op(Op.SetupForEval, $s0)
+  );
 
-    bindableAtNames ? op(Op.SetNamedVariables, $s0) : NONE,
-    bindableBlocks ? op(Op.SetBlocks, $s0) : NONE,
+  if (bindableAtNames) out.push(op(Op.SetNamedVariables, $s0));
+  if (bindableBlocks) out.push(op(Op.SetBlocks, $s0));
 
+  out.push(
     op(Op.Pop, 1),
     op(Op.InvokeComponentLayout, $s0),
     op(Op.DidRenderLayout, $s0),
@@ -432,7 +427,7 @@ export function invokePreparedComponent<T extends CompileActions | StatementComp
   return out as T;
 }
 
-export function InvokeBareComponent(): CompileActions {
+export function InvokeBareComponent(): CompileAction[] {
   return [
     op(Op.Fetch, $s0),
     op(Op.Dup, $sp, 1),
@@ -441,7 +436,7 @@ export function InvokeBareComponent(): CompileActions {
     op(MachineOp.PushFrame),
     op(Op.PushEmptyArgs),
     op(Op.PrepareArgs, $s0),
-    invokePreparedComponent(false, false, true, () => [
+    ...invokePreparedComponent(false, false, true, () => [
       op(Op.GetComponentLayout, $s0),
       op(Op.PopulateLayout, $s0),
     ]),
@@ -452,10 +447,10 @@ export function InvokeBareComponent(): CompileActions {
 export function curryComponent(
   { definition, params, hash, atNames }: CurryComponent,
   referrer: unknown
-): ExpressionCompileActions {
+): ExpressionCompileAction[] {
   return [
     op(MachineOp.PushFrame),
-    SimpleArgs({ params, hash, atNames }),
+    ...SimpleArgs({ params, hash, atNames }),
     op(Op.CaptureArgs),
     op(HighLevelResolutionOpcode.Expr, definition),
     op(Op.CurryComponent, templateMeta(referrer)),
@@ -466,8 +461,4 @@ export function curryComponent(
 
 function blockForLayout<R>(layout: LayoutWithContext<R>): CompilableBlock {
   return compilableBlock([layout.block[0]], meta(layout));
-}
-
-export function WithSavedRegister(register: SavedRegister, block: Block): CompileActions {
-  return [op(Op.Fetch, register), block(), op(Op.Load, register)];
 }

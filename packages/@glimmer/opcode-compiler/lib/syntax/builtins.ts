@@ -6,7 +6,7 @@ import {
   MacroBlocks,
   MacroInlines,
   Op,
-  StatementCompileActions,
+  StatementCompileAction,
 } from '@glimmer/interfaces';
 import { assert, expect, isPresent, unwrap } from '@glimmer/util';
 import { $fp, $sp } from '@glimmer/vm';
@@ -21,7 +21,6 @@ import { CompilePositional } from '../opcode-builder/helpers/shared';
 import { DynamicScope, PushPrimitiveReference } from '../opcode-builder/helpers/vm';
 import { label } from '../opcode-builder/operands';
 import { EMPTY_BLOCKS } from '../utils';
-import { isHandled, NONE, UNHANDLED } from './concat';
 
 export function populateBuiltins(
   blocks: MacroBlocks,
@@ -48,7 +47,7 @@ export function populateBuiltins(
         if (blocks.has('else')) {
           return InvokeStaticBlock(blocks.get('else')!);
         } else {
-          return NONE;
+          return [];
         }
       },
     });
@@ -71,7 +70,7 @@ export function populateBuiltins(
         if (blocks.has('else')) {
           return InvokeStaticBlock(blocks.get('else')!);
         } else {
-          return NONE;
+          return [];
         }
       },
 
@@ -106,7 +105,7 @@ export function populateBuiltins(
         if (blocks.has('else')) {
           return InvokeStaticBlock(blocks.get('else')!);
         } else {
-          return NONE;
+          return [];
         }
       },
     });
@@ -114,22 +113,22 @@ export function populateBuiltins(
 
   blocks.add('let', (params, _hash, blocks) => {
     if (!params) {
-      return error('let requires arguments', 0, 0);
+      return [error('let requires arguments', 0, 0)];
     }
 
     let { count, actions } = CompilePositional(params);
-    return [actions, InvokeStaticBlockWithStack(blocks.get('default')!, count)];
+    return [...actions, ...InvokeStaticBlockWithStack(blocks.get('default')!, count)];
   });
 
   blocks.add('each', (params, hash, blocks) => {
     return Replayable({
       args() {
-        let actions: StatementCompileActions;
+        let actions: StatementCompileAction[];
 
         if (hash && hash[0][0] === 'key') {
           actions = [op(HighLevelResolutionOpcode.Expr, hash[1][0])];
         } else {
-          actions = [PushPrimitiveReference(null)];
+          actions = PushPrimitiveReference(null);
         }
 
         actions.push(
@@ -140,7 +139,7 @@ export function populateBuiltins(
       },
 
       body() {
-        let out: StatementCompileActions = [
+        let out: StatementCompileAction[] = [
           op(Op.EnterList, label('BODY'), label('ELSE')),
           op(MachineOp.PushFrame),
           op(Op.Dup, $fp, 1),
@@ -148,7 +147,7 @@ export function populateBuiltins(
           op(HighLevelBuilderOpcode.Label, 'ITER'),
           op(Op.Iterate, label('BREAK')),
           op(HighLevelBuilderOpcode.Label, 'BODY'),
-          InvokeStaticBlockWithStack(unwrap(blocks.get('default')), 2),
+          ...InvokeStaticBlockWithStack(unwrap(blocks.get('default')), 2),
           op(Op.Pop, 2),
           op(MachineOp.Jump, label('FINALLY')),
           op(HighLevelBuilderOpcode.Label, 'BREAK'),
@@ -159,7 +158,7 @@ export function populateBuiltins(
         ];
 
         if (blocks.has('else')) {
-          out.push(InvokeStaticBlock(blocks.get('else')!));
+          out.push(...InvokeStaticBlock(blocks.get('else')!));
         }
 
         return out;
@@ -174,8 +173,8 @@ export function populateBuiltins(
       let { actions } = CompilePositional(expressions);
 
       return [
-        actions,
-        DynamicScope(names, () => {
+        ...actions,
+        ...DynamicScope(names, () => {
           return InvokeStaticBlock(unwrap(blocks.get('default')));
         }),
       ];
@@ -196,20 +195,22 @@ export function populateBuiltins(
         blocks.get('default')
       );
 
-      if (isHandled(returned)) return returned;
+      if (returned.length > 0) return returned;
     }
 
     let [definition, ...params] = _params!;
 
-    return op(HighLevelCompileOpcode.DynamicComponent, {
-      definition,
-      elementBlock: null,
-      params: isPresent(params) ? params : null,
-      args: hash,
-      atNames: false,
-      blocks,
-      curried: false,
-    });
+    return [
+      op(HighLevelCompileOpcode.DynamicComponent, {
+        definition,
+        elementBlock: null,
+        params: isPresent(params) ? params : null,
+        args: hash,
+        atNames: false,
+        blocks,
+        curried: false,
+      }),
+    ];
   });
 
   inlines.add('component', (_name, _params, hash, context) => {
@@ -221,7 +222,7 @@ export function populateBuiltins(
     let tag = _params && _params[0];
     if (typeof tag === 'string') {
       let returned = StaticComponentHelper(context, tag as string, hash, null);
-      if (returned !== UNHANDLED) return returned;
+      if (returned.length > 0) return returned;
     }
 
     let [definition, ...params] = _params!;

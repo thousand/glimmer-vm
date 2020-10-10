@@ -1,7 +1,6 @@
 export * from './lib/program-context';
 
 export { MacrosImpl } from './lib/syntax/macros';
-export { UNHANDLED, NONE } from './lib/syntax/concat';
 
 export { debugCompiler } from './lib/compiler';
 

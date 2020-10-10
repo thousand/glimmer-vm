@@ -1,26 +1,29 @@
 import { ContainingMetadata, SexpOpcode, SexpOpcodeMap } from '@glimmer/interfaces';
 import { assert } from '@glimmer/util';
 
-export type CompilerFunction<TSexp, TCompileActions> = (
+export type CompilerFunction<TSexp, TCompileAction> = (
   sexp: TSexp,
   meta: ContainingMetadata
-) => TCompileActions;
+) => TCompileAction | TCompileAction[];
 
-export class Compilers<TSexpOpcodes extends SexpOpcode, TCompileActions> {
+export class Compilers<TSexpOpcodes extends SexpOpcode, TCompileAction> {
   private names: {
     [name: number]: number;
   } = {};
 
-  private funcs: CompilerFunction<any, TCompileActions>[] = [];
+  private funcs: CompilerFunction<any, TCompileAction>[] = [];
 
   add<TSexpOpcode extends TSexpOpcodes>(
     name: TSexpOpcode,
-    func: CompilerFunction<SexpOpcodeMap[TSexpOpcode], TCompileActions>
+    func: CompilerFunction<SexpOpcodeMap[TSexpOpcode], TCompileAction>
   ): void {
     this.names[name] = this.funcs.push(func) - 1;
   }
 
-  compile(sexp: SexpOpcodeMap[TSexpOpcodes], meta: ContainingMetadata): TCompileActions {
+  compile(
+    sexp: SexpOpcodeMap[TSexpOpcodes],
+    meta: ContainingMetadata
+  ): TCompileAction | TCompileAction[] {
     let name = sexp[0];
     let index = this.names[name];
     let func = this.funcs[index];

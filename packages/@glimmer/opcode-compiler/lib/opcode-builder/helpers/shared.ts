@@ -1,10 +1,10 @@
 import {
   ContainingMetadata,
-  ExpressionCompileActions,
+  ExpressionCompileAction,
   LayoutWithContext,
   Op,
   Option,
-  StatementCompileActions,
+  StatementCompileAction,
   WireFormat,
   ArgsOptions,
   HighLevelResolutionOpcode,
@@ -14,7 +14,6 @@ import { EMPTY_ARRAY, EMPTY_STRING_ARRAY } from '@glimmer/util';
 import { op } from '../encoder';
 import { strArray } from '../operands';
 import { PushYieldableBlock } from './blocks';
-import { NONE } from '../../syntax/concat';
 
 /**
  * Compile arguments, pushing an Arguments object onto the stack.
@@ -29,17 +28,17 @@ export function CompileArgs({
   hash,
   blocks,
   atNames,
-}: ArgsOptions): StatementCompileActions {
-  let out: StatementCompileActions = [];
+}: ArgsOptions): StatementCompileAction[] {
+  let out: StatementCompileAction[] = [];
 
   let blockNames: string[] = blocks.names;
   for (let i = 0; i < blockNames.length; i++) {
-    out.push(PushYieldableBlock(blocks.get(blockNames[i])));
+    out.push(...PushYieldableBlock(blocks.get(blockNames[i])));
   }
 
   let { count, actions } = CompilePositional(params);
 
-  out.push(actions);
+  out.push(...actions);
 
   let flags = count << 4;
 
@@ -64,12 +63,16 @@ export function CompileArgs({
   return out;
 }
 
-export function SimpleArgs({ params, hash, atNames }: SimpleArgsOptions): ExpressionCompileActions {
-  let out: ExpressionCompileActions = [];
+export function SimpleArgs({
+  params,
+  hash,
+  atNames,
+}: SimpleArgsOptions): ExpressionCompileAction[] {
+  let out: ExpressionCompileAction[] = [];
 
   let { count, actions } = CompilePositional(params);
 
-  out.push(actions);
+  out.push(...actions);
 
   let flags = count << 4;
 
@@ -98,10 +101,10 @@ export function SimpleArgs({ params, hash, atNames }: SimpleArgsOptions): Expres
  */
 export function CompilePositional(
   params: Option<WireFormat.Core.Params>
-): { count: number; actions: ExpressionCompileActions } {
-  if (!params) return { count: 0, actions: NONE };
+): { count: number; actions: ExpressionCompileAction[] } {
+  if (!params) return { count: 0, actions: [] };
 
-  let actions: ExpressionCompileActions = [];
+  let actions: ExpressionCompileAction[] = [];
 
   for (let i = 0; i < params.length; i++) {
     actions.push(op(HighLevelResolutionOpcode.Expr, params[i]));

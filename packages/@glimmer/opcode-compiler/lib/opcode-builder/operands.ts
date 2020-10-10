@@ -1,17 +1,11 @@
 import {
   ArrayOperand,
-  CompileActions,
-  ExpressionOperand,
   LabelOperand,
-  LookupHandleOperand,
-  Option,
-  OptionOperand,
   OtherOperand,
   PrimitiveOperand,
   SerializableOperand,
   StringArrayOperand,
   TemplateMetaOperand,
-  WireFormat,
   ImmediateOperand,
 } from '@glimmer/interfaces';
 
@@ -43,18 +37,6 @@ export function other(value: unknown): OtherOperand {
 
 export function label(value: string): LabelOperand {
   return { type: 'label', value };
-}
-
-export function option(list: Option<CompileActions>): OptionOperand {
-  return { type: 'option', value: list };
-}
-
-export function expression(expr: WireFormat.Expression): ExpressionOperand {
-  return { type: 'expr', value: expr };
-}
-
-export function lookup(kind: 'helper', value: string): LookupHandleOperand {
-  return { type: 'lookup', value: { kind, value } };
 }
 
 export function immediate(value: number): ImmediateOperand {
